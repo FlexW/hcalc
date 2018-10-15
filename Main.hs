@@ -18,7 +18,7 @@ import Text.Parsec.Expr ( Assoc(AssocLeft)
                         , Operator(Prefix)
                         , buildExpressionParser )
 import Text.Parsec.Language (emptyDef)
-import Text.ParserCombinators.Parsec (char)
+import Text.ParserCombinators.Parsec (char, try)
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import Control.Monad.Error
@@ -27,14 +27,14 @@ import Control.Monad.Identity
 -- import qualified Numeric.Decimal as N
 -- import qualified Numeric.Decimal.Operation as N
 
-type Number = Double -- N.ExtendedDecimal N.P2000
+type Number = Rational -- N.ExtendedDecimal N.P2000
 
 -- Lexer
 
 def = emptyDef { identStart  = letter
                , identLetter = alphaNum
-               , opStart     = oneOf "!+-*/=%"
-               , opLetter    = oneOf "!+-*/=%"
+               , opStart     = oneOf "!+-*/=%^"
+               , opLetter    = oneOf "!+-*/=%^"
                }
 
 lexer :: TokenParser ()
@@ -50,10 +50,14 @@ data Expression = Constant Number
                 | Subtraction Expression Expression
                 | Multiplication Expression Expression
                 | Division Expression Expression
+                | Power Expression Expression
                 | Modulo Expression Expression
                 | Negation Expression
                 | Assignment Expression Expression
                 deriving Show
+
+-- data Identifier = Variable String
+--                 | Function String Expression
 
 -- Parser
 
@@ -85,6 +89,9 @@ parseExpression = (flip buildExpressionParser) parseTerm [
    ]
  , [ Postfix (reservedOp lexer "!" >> return Fakultaet)
    ]
+ , [
+     Infix (reservedOp lexer "^" >> return Power) AssocLeft
+   ]
  , [ Infix (reservedOp lexer "*" >> return Multiplication) AssocLeft
    , Infix (reservedOp lexer "/" >> return Division) AssocLeft
    , Infix (reservedOp lexer "%" >> return Modulo) AssocLeft
@@ -99,8 +106,8 @@ parseExpression = (flip buildExpressionParser) parseTerm [
 parseTerm :: Parser Expression
 parseTerm = parens lexer parseExpression
         <|> parseNumber
-        <|> parseFunction
-        <|> parseIdentifier
+        <|> do
+  try parseFunction <|> parseIdentifier
 
 parseInput :: Parser Expression
 parseInput = do
@@ -155,6 +162,11 @@ eval (Fakultaet e) = do
   val <- eval e
   return $ fac val
 
+eval (Power eb ee) = do
+  b <- eval eb
+  e <- eval ee
+  return $ b ^^ round e
+
 eval (Addition eLeft eRight) = do
     lft <- eval eLeft
     rgt <- eval eRight
@@ -178,7 +190,7 @@ eval (Division eLeft eRight) = do
 eval (Modulo eLeft eRight) = do
     lft <- eval eLeft
     rgt <- eval eRight
-    return $ decimalMod lft rgt
+    return $ fromInteger $ floor lft `mod` floor rgt
 
 eval (Negation e) = do
     val <- eval e
@@ -201,13 +213,14 @@ defaultSyms :: SymTab
 defaultSyms = (,)
   (M.fromList
   [ ("e", 1)
-  , ("pi", pi)
+  , ("pi", 355/133)
   ])
   (M.fromList
-  [ ("sin", sin)
-  , ("cos", cos)
-  , ("tan", tan)
-  , ("exp", exp)
+  [ ("sin", toRational . sin . fromRational)
+  , ("cos", toRational . cos . fromRational)
+  , ("tan", toRational . tan . fromRational)
+  , ("exp", toRational . exp . fromRational)
+  , ("sqrt", toRational . sqrt . fromRational)
   , ("abs", abs)
   , ("fac", fac)
   ])
