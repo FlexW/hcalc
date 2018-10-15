@@ -23,6 +23,7 @@ import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import Control.Monad.Error
 import Control.Monad.Identity
+import System.Console.Haskeline
 
 -- import qualified Numeric.Decimal as N
 -- import qualified Numeric.Decimal.Operation as N
@@ -235,16 +236,22 @@ calculate symTab s =
                  Left  err              -> ("error: " ++ err, symTab)
                  Right (val, newSymTab) -> (show val, newSymTab)
 
-loop :: SymTab -> IO ()
+loop :: SymTab -> InputT IO ()
 loop symTab = do
-    line <- getLine
-    if null line
-    then return ()
-    else do
-        let (result, symTab')= calculate symTab line
-        putStrLn result
+    line <- getInputLine "> "
+    case line of
+      Nothing -> return ()
+      Just ":q" -> return ()
+      Just ":h" -> outputStrLn "This is the help."
+      Just input -> do
+        let (result, symTab')= calculate symTab input
+        outputStrLn result
         loop symTab'
 
-main = loop defaultSyms
+main :: IO ()
+main = do
+  putStrLn "For help type :h"
+  runInputT defaultSettings $ loop defaultSyms
+
 -- show
 -- Enter expressions, one per line. Empty line to quit --
