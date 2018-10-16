@@ -18,17 +18,14 @@ import Text.Parsec.Expr ( Assoc(AssocLeft)
                         , Operator(Prefix)
                         , buildExpressionParser )
 import Text.Parsec.Language (emptyDef)
-import Text.ParserCombinators.Parsec (char, try)
+import Text.ParserCombinators.Parsec (try)
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import Control.Monad.Error
 import Control.Monad.Identity
 import System.Console.Haskeline
 
--- import qualified Numeric.Decimal as N
--- import qualified Numeric.Decimal.Operation as N
-
-type Number = Rational -- N.ExtendedDecimal N.P2000
+type Number = Rational
 
 -- Lexer
 
@@ -57,9 +54,6 @@ data Expression = Constant Number
                 | Assignment Expression Expression
                 deriving Show
 
--- data Identifier = Variable String
---                 | Function String Expression
-
 -- Parser
 
 parseNumber :: Parser Expression
@@ -78,9 +72,6 @@ parseFunction :: Parser Expression
 parseFunction = do
   i <- identifier lexer
   arg <- parens lexer parseExpression
-  -- char '('
-  -- arg <- parseExpression --lexer
-  -- char ')'
   return $ Function i arg
 
 parseExpression :: Parser Expression
@@ -119,19 +110,9 @@ parseInput = do
 
 -- Evaluator
 
--- abs :: Number -> Number
--- abs x | x >= 0 = x
---       | otherwise = -x
-
 fac :: Number -> Number
 fac 0 = 1
 fac n = n * fac (n - 1)
-
-decimalMod  :: Number -> Number -> Number
-decimalMod x y
-  | z >= 0 = decimalMod z y
-  | otherwise = x
-  where z = x - y
 
 type VarTab = M.Map String Number
 type FuncTab = M.Map String (Number -> Number)
@@ -226,8 +207,6 @@ defaultSyms = (,)
   , ("fac", fac)
   ])
 
---runEvaluator returns Either String (Double, SymTab Double)
-
 calculate :: SymTab -> String -> (String, SymTab)
 calculate symTab s =
     case parse parseInput "" s of
@@ -256,6 +235,3 @@ main :: IO ()
 main = do
   putStrLn "For help type :h"
   runInputT defaultSettings $ loop defaultSyms
-
--- show
--- Enter expressions, one per line. Empty line to quit --
