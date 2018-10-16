@@ -245,8 +245,12 @@ loop symTab = do
       Just ":h" -> outputStrLn "This is the help."
       Just input -> do
         let (result, symTab')= calculate symTab input
-        outputStrLn result
-        loop symTab'
+            symTab'' = insertVar "result" (read result) symTab'
+        outputStrLn $ prettyOutput result
+        loop symTab''
+
+prettyOutput :: String -> String
+prettyOutput = map (\c -> if c == '%' then '/' else c)
 
 main :: IO ()
 main = do
